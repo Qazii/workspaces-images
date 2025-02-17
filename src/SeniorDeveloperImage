@@ -1,0 +1,115 @@
+# Define base image and tags
+ARG BASE_TAG="develop"
+ARG BASE_IMAGE="core-ubuntu-focal"
+FROM kasmweb/$BASE_IMAGE:$BASE_TAG
+
+USER root
+
+# Set Environment Variables
+ENV HOME /home/kasm-default-profile
+ENV STARTUPDIR /dockerstartup
+WORKDIR $HOME
+
+### Envrionment config
+ENV DEBIAN_FRONTEND=noninteractive \
+    SKIP_CLEAN=true \
+    KASM_RX_HOME=$STARTUPDIR/kasmrx \
+    DONT_PROMPT_WSL_INSTALL="No_Prompt_please" \
+    INST_DIR=$STARTUPDIR/install \
+    INST_SCRIPTS="/ubuntu/install/tools/install_tools_deluxe.sh \
+                  /ubuntu/install/misc/install_tools.sh \
+                  /ubuntu/install/chrome/install_chrome.sh \
+                  /ubuntu/install/chromium/install_chromium.sh \
+                  /ubuntu/install/firefox/install_firefox.sh \
+                  /ubuntu/install/sublime_text/install_sublime_text.sh \
+                  /ubuntu/install/vs_code/install_vs_code.sh \
+                  /ubuntu/install/nextcloud/install_nextcloud.sh \
+                  /ubuntu/install/remmina/install_remmina.sh \
+                  /ubuntu/install/only_office/install_only_office.sh \
+                  /ubuntu/install/signal/install_signal.sh \
+                  /ubuntu/install/gimp/install_gimp.sh \
+                  /ubuntu/install/zoom/install_zoom.sh \
+                  /ubuntu/install/obs/install_obs.sh \
+                  /ubuntu/install/ansible/install_ansible.sh \
+                  /ubuntu/install/terraform/install_terraform.sh \
+                  /ubuntu/install/telegram/install_telegram.sh \
+                  /ubuntu/install/thunderbird/install_thunderbird.sh \
+                  /ubuntu/install/slack/install_slack.sh \
+                  /ubuntu/install/gamepad_utils/install_gamepad_utils.sh \
+                  /ubuntu/install/cleanup/cleanup.sh"
+
+# Copy install scripts
+COPY ./src/ $INST_DIR
+
+# Run installations for all tools
+RUN \
+  # Install programming languages, IDEs, and tools
+  apt-get update && apt-get install -y \
+    # IDEs & Development Tools
+    code git vim neovim \
+    openjdk-17-jdk \
+    python3 python3-pip python3-venv python3-dev \
+    golang-go \
+    nodejs npm \
+    ruby \
+    rustc \
+    docker.io kubectl minikube \
+    terraform ansible \
+    postgresql-client mysql-client redis-tools mongodb-clients \
+    curl jq \
+    nmap \
+    tmux htop \
+    zsh oh-my-zsh \
+    gitkraken \
+    docker-ce \
+    # Cloud tools & other utilities
+    awscli azure-cli gcloud \
+    terraform \
+    prometheus prometheus-node-exporter \
+    grafana \
+    jenkins gitlab-runner \
+    vim-tiny \
+    # Database engines
+    postgresql \
+    mongodb \
+    mysql \
+    # Monitoring & Logging tools
+    splunk-client datadog-agent \
+    # CI/CD tools
+    jq \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* && \
+  
+  # Install Visual Studio Code extensions
+  code --install-extension ms-azuretools.vscode-docker \
+  code --install-extension ms-vscode-helm \
+  code --install-extension redhat.vscode-yaml \
+  code --install-extension hashicorp.terraform \
+  code --install-extension ms-python.python \
+  code --install-extension golang.go \
+  code --install-extension dbaeumer.vscode-eslint \
+  code --install-extension ms-vscode.node-debug2 \
+  code --install-extension ms-vscode.powershell \
+  code --install-extension hashicorp.terraform \
+  code --install-extension ms-azuretools.vscode-azurecli \
+  code --install-extension ms-vscode-remote.remote-containers && \
+  
+  # Run Install Scripts
+  for SCRIPT in $INST_SCRIPTS; do \
+    bash ${INST_DIR}${SCRIPT} || exit 1; \
+  done && \
+  
+  # Set user permissions and clean up
+  $STARTUPDIR/set_user_permission.sh $HOME && \
+  rm -f /etc/X11/xinit/Xclients && \
+  chown 1000:0 $HOME && \
+  mkdir -p /home/kasm-user && \
+  chown -R 1000:0 /home/kasm-user && \
+  rm -Rf ${INST_DIR}
+
+# Set default user and environment
+USER 1000
+ENV HOME /home/kasm-user
+WORKDIR $HOME
+
+# Default command to run
+CMD ["--tail-log"]
